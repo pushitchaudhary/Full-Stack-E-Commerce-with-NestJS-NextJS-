@@ -125,3 +125,4 @@ Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"   // pass for jwt secret
  
+# -Full-Stack-E-Commerce-with-NestJS-NextJS-
