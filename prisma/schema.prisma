@@ -1,0 +1,225 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  //output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum orderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+
+// Creating Database Models
+// User Model
+model User{
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  role      Role     @default(USER)
+  refreshTokens String?
+
+  // Relations
+  orders    Order[]
+  carts    Cart[]
+  payments  Payment[]
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+
+  @@index([email]) // Indexing email for faster searches
+  @@map("users") // Mapping to "users" table in the database
+}
+
+// Product Model
+model Product{
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int    @default(0)
+  sku         String   @unique
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+
+  // Relations
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  categoryId    String
+  category Category @relation(fields: [categoryId], references: [id])
+
+  // Created At & Updated At
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+
+  @@index([sku]) // Indexing sku for faster searches
+  @@index([categoryId]) // Indexing categoryId for faster searches
+  @@index([isActive]) // Indexing isActive for faster searches
+  @@map("products") // Mapping to "products" table in the database
+
+
+}
+
+// Category Model
+model Category{
+  id        String   @id @default(uuid())
+  name      String   @unique
+  description String?
+  slug      String   @unique
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  products  Product[]
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name]) // Indexing name for faster searches
+  @@index([slug]) // Indexing slug for faster searches
+  @@index([isActive]) // Indexing isActive for faster searches
+  @@map("categories") // Mapping to "categories" table in the database
+}
+
+// OrderItem Model
+model OrderItem{
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  ordersId String
+  order Order @relation(fields: [ordersId], references: [id], onDelete: Cascade)
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId]) // Indexing productId for faster searches
+  @@index([ordersId]) // Indexing ordersId for faster searches
+  @@map("order_items") // Mapping to "order_items" table in the database
+}
+
+// CartItem Model
+model CartItem{
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int @default(1)
+  cartId String @unique
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+
+  @@unique([productId, cartId]) // Ensuring a product appears only once per cart
+
+  @@index([productId]) // Indexing productId for faster searches
+  @@index([cartId]) // Indexing cartId for faster searches
+  @@map("cart_items") // Mapping to "cart_items" table in the database
+}
+
+// Oder Model
+model Order{
+  id  String @id @default(uuid())
+  userId String
+  orderNumber String @unique @default(uuid())
+  status orderStatus @default(PENDING)
+  totalAmount Decimal @db.Decimal(10, 2)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  cartId String
+  cart Cart @relation(fields: [cartId], references: [id])
+  shippingAddress String?
+
+  orderItems OrderItem[]
+
+  orderPayment Payment?
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderNumber]) // Indexing orderNumber for faster searches
+  @@index([userId])
+  @@index([status])
+  @@map("orders") // Mapping to "orders" table in the database
+}
+
+// Cart Model
+model Cart{
+  id String @id @default(uuid())
+  orders Order[]
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  checkoutCompleted Boolean @default(false)
+
+  cartItems CartItem[]
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("carts") // Mapping to "carts" table in the database
+
+}
+
+// Payment Model
+model Payment{
+  id String @id @default(uuid())
+  amount Decimal @db.Decimal(10, 2)
+  paymentMethod String
+  paymentStatus PaymentStatus @default(PENDING)
+  currency String @default("USD")
+  transactionId String @unique
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId String @unique
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Created At & Updated At
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([transactionId]) // Indexing transactionId for faster searches
+  @@index([orderId])
+  @@index([userId])
+  @@map("payments") // Mapping to "payments" table in the database
+
+}
